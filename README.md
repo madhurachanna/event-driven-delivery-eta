@@ -2,71 +2,101 @@
 
 An event-driven microservices system that simulates an order-to-delivery workflow and continuously updates delivery ETA via Kafka events.
 
-Local Definition of Done: `docker compose up` starts infra + all services and the demo runs end-to-end.
+## Quick Start
 
-## Architecture (V1)
-Flow (Kafka): `order.created → inventory.reserved|inventory.rejected → payment.authorized|payment.failed → delivery.assigned → eta.updated`.
+### Prerequisites
+- Java 21
+- Maven
+- Docker & Docker Compose
 
-All events share a common envelope to keep contracts stable and extensible (V2-ready via additive schema evolution).
+### 1. Start Infrastructure
+```bash
+docker compose -f infra/compose/compose.yml up -d
+```
+
+This starts: Zookeeper, Kafka, Postgres, Cassandra, Redis
+
+### 2. Build Common Module (first time only)
+```bash
+cd services/common
+mvn clean install
+```
+
+### 3. Run a Service
+```bash
+cd services/payment-service  # or order-service, etc.
+mvn spring-boot:run
+```
+
+## Architecture
+
+```
+Flow (Kafka): order.created → inventory.reserved|rejected → payment.authorized|failed → delivery.assigned → eta.updated
+```
 
 ## Services
-- `order-service`: REST API creates orders in Postgres and publishes `order.created` to `raw.order-events`.
-- `inventory-service`: Consumes `raw.order-events`, reserves/rejects stock, and publishes to `raw.inventory-events`.
-- `payment-service`: Consumes `raw.inventory-events`, writes payments in Postgres, publishes to `raw.payment-events`.
-- `delivery-service` (DeliveryETA): Consumes `raw.payment-events`, emits `delivery.assigned` and periodic `eta.updated`, stores history in Cassandra and current view in Redis.
-- `query-api`: UI-facing API that reads current view from Redis (cache-aside), rebuilds from Postgres + Cassandra, and provides optional history + basic DLQ admin endpoints.
 
-## Kafka topics
-Main topics (one per domain area):
-- `raw.order-events`
-- `raw.inventory-events`
-- `raw.payment-events`
-- `raw.delivery-events`
+| Service | Port | Owner | Description |
+|---------|------|-------|-------------|
+| order-service | 8081 | Team A | REST API creates orders, publishes `order.created` |
+| inventory-service | 8083 | Team A | Reserves/rejects stock |
+| payment-service | 8082 | Team B | Processes payments |
+| delivery-service | 8084 | Team B | Manages delivery + ETA |
+| query-api | 8080 | Team B | Read API for UI |
 
-Dead-letter topics:
-- `dlq.order-events`
-- `dlq.inventory-events`
-- `dlq.payment-events`
-- `dlq.delivery-events`
+## Kafka Topics
 
-## Event envelope (common contract)
-Every event includes:
-- `eventId`
-- `eventType`
-- `schemaVersion` (starts at 1)
-- `occurredAt`
-- `producedAt`
-- `orderId` (Kafka partition key)
-- `correlationId`
-- `producer`
-- `payload`
+| Topic | Purpose |
+|-------|---------|
+| `raw.order-events` | Order lifecycle events |
+| `raw.inventory-events` | Stock reservation events |
+| `raw.payment-events` | Payment events |
+| `raw.delivery-events` | Delivery + ETA events |
+| `dlq.*` | Dead-letter queues |
 
-Global rules:
-- Partition key: `orderId` for order-lifecycle topics.
-- Payload is immutable (new info = new event).
-- Schema changes are additive.
+## Project Structure
 
-DLQ headers (standard):
-- `x-retry-count`
-- `x-original-topic`
-- `x-error`
+```
+├── infra/compose/          # Docker Compose for local infra
+├── services/
+│   ├── common/             # Shared event contracts (use this!)
+│   ├── order-service/      # Team A
+│   ├── inventory-service/  # Team A
+│   ├── payment-service/    # Team B
+│   ├── delivery-service/   # Team B
+│   └── query-api/          # Team B
+└── docs/                   # Architecture docs
+```
 
-## Reliability baseline
-Kafka processing is at-least-once, so consumers must be idempotent (dedupe by `eventId`/idempotency key).
+## Event Envelope (Shared Contract)
 
-Use bounded retries, publish to DLQ on terminal failure, and commit offsets only after side effects are persisted.
+All events use `com.delivery.common.event.EventEnvelope`:
 
-## Repo layout
-- `services/`: Spring Boot microservices (`order-service`, `inventory-service`, `payment-service`, `delivery-service`, `query-api`)
-- `infra/compose/`: local Docker Compose stack for Kafka + Postgres + Redis + Cassandra
-- `infra/k8s/`: optional local Kubernetes manifests (kind)
-- `frontend/angular-app/`: minimal UI to create and track orders (optional for V1)
-- `docs/`: architecture, event contracts, and runbooks
+```json
+{
+  "eventId": "uuid",
+  "eventType": "order.created",
+  "schemaVersion": 1,
+  "occurredAt": "2024-02-07T15:00:00Z",
+  "producedAt": "2024-02-07T15:00:01Z",
+  "orderId": "order-123",
+  "correlationId": "corr-456",
+  "producer": "order-service",
+  "payload": { ... }
+}
+```
 
-## Local run (infra first)
-Start infra:
-- `docker compose -f infra/compose/compose.yml up -d`
+## Adding Common Module as Dependency
 
-Then start services (instructions evolve as services are implemented) and run the demo:
-- Create an order (UI or `POST /orders`) → copy `orderId`.
-- Track status/ETA via `GET /ui/orders/{orderId}` on Query API.
+In your service's `pom.xml`:
+```xml
+<dependency>
+    <groupId>com.delivery</groupId>
+    <artifactId>common</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+## Local Definition of Done
+
+`docker compose up` starts infra + all services and the demo runs end-to-end.
