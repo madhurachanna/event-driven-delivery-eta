@@ -1,0 +1,25 @@
+server:
+  port: 8081  # Order service port (per README)
+
+spring:
+  application:
+    name: order-service
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  # Postgres Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/order_db
+    username: postgres
+    password: postgres
+
+  jpa:
+    hibernate:
+      ddl-auto: update  # Auto-create/update tables (dev only!)
+    show-sql: true      # Log SQL for learning
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
