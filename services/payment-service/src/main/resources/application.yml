@@ -27,3 +27,32 @@ spring:
     hibernate:
       ddl-auto: update  # Auto-create/update tables (dev only!)
     show-sql: true      # Log SQL for learning
+
+  # Redis Configuration (for event deduplication)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms    # Connection timeout
+
+# Deduplication settings
+dedup:
+  redis:
+    ttl-hours: 24        # How long to remember processed eventIds
+    key-prefix: "payment:dedup:"
+
+# Actuator & Prometheus metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus  # Expose these endpoints
+  endpoint:
+    health:
+      show-details: always               # Show component health (Redis, DB, Kafka)
+  metrics:
+    distribution:
+      percentiles-histogram:
+        payment.processing.duration: true  # Enable p50/p95/p99 histograms
+    tags:
+      application: payment-service         # Global tag on all metrics

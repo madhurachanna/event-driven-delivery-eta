@@ -2,13 +2,7 @@ package com.delivery.payment.dto;
 
 import java.math.BigDecimal;
 
-/**
- * Payload from inventory.reserved events.
- * 
- * CONCEPT: DTO (Data Transfer Object)
- * - Simple class to hold data from incoming events
- * - Maps to the "payload" field in EventEnvelope
- */
+/** Payload extracted from incoming {@code inventory.reserved} events. */
 public class InventoryEventPayload {
 
     private String orderId;
@@ -16,11 +10,9 @@ public class InventoryEventPayload {
     private String currency;
     private String customerId;
 
-    // Default constructor for Jackson
     public InventoryEventPayload() {
     }
 
-    // Getters and Setters
     public String getOrderId() {
         return orderId;
     }
@@ -49,7 +41,7 @@ public class InventoryEventPayload {
         return customerId;
     }
 
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+    public void setCustomerId(String id) {
+        this.customerId = id;
     }
 }

@@ -14,12 +14,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Publishes payment events to Kafka.
- * 
- * CONCEPT: KafkaTemplate
- * - Spring's helper for publishing messages to Kafka
- * - send(topic, key, value) publishes a message
- * - Key is used for partitioning (same key → same partition)
+ * Publishes payment outcome events to Kafka. Uses orderId as the
+ * partition key to preserve per-order event ordering.
  */
 @Component
 public class PaymentEventPublisher {
@@ -36,9 +32,6 @@ public class PaymentEventPublisher {
         this.objectMapper = objectMapper;
     }
 
-    /**
-     * Publish payment event based on payment status.
-     */
     public void publishPaymentEvent(Payment payment, String correlationId) {
         String eventType = payment.getStatus() == PaymentStatus.AUTHORIZED
                 ? EventTypes.PAYMENT_AUTHORIZED
@@ -46,18 +39,13 @@ public class PaymentEventPublisher {
 
         PaymentEventPayload payload = payment.getStatus() == PaymentStatus.AUTHORIZED
                 ? PaymentEventPayload.fromAuthorized(
-                        payment.getId(),
-                        payment.getOrderId(),
-                        payment.getAmount(),
-                        payment.getCurrency())
+                        payment.getId(), payment.getOrderId(),
+                        payment.getAmount(), payment.getCurrency())
                 : PaymentEventPayload.fromFailed(
-                        payment.getId(),
-                        payment.getOrderId(),
-                        payment.getAmount(),
-                        payment.getCurrency(),
+                        payment.getId(), payment.getOrderId(),
+                        payment.getAmount(), payment.getCurrency(),
                         "Payment declined");
 
-        // Build the event envelope
         EventEnvelope<PaymentEventPayload> envelope = EventEnvelope.<PaymentEventPayload>builder()
                 .eventType(eventType)
                 .orderId(payment.getOrderId())
@@ -69,9 +57,6 @@ public class PaymentEventPublisher {
         try {
             String json = objectMapper.writeValueAsString(envelope);
 
-            // CONCEPT: Partition Key
-            // Using orderId as key ensures all events for same order
-            // go to same partition (preserves ordering)
             kafkaTemplate.send(Topics.PAYMENT_EVENTS, payment.getOrderId(), json)
                     .whenComplete((result, ex) -> {
                         if (ex != null) {
@@ -79,8 +64,7 @@ public class PaymentEventPublisher {
                                     payment.getOrderId(), ex.getMessage());
                         } else {
                             log.info("Published {} for order={} to partition={}",
-                                    eventType,
-                                    payment.getOrderId(),
+                                    eventType, payment.getOrderId(),
                                     result.getRecordMetadata().partition());
                         }
                     });

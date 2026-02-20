@@ -48,6 +48,30 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Redis: Used for fast O(1) event deduplication with TTL -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Spring Integration Redis: Provides RedisLockRegistry for distributed locks -->
+        <dependency>
+            <groupId>org.springframework.integration</groupId>
+            <artifactId>spring-integration-redis</artifactId>
+        </dependency>
+
+        <!-- Actuator: health checks, metrics endpoint, info endpoint -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Micrometer Prometheus: exports metrics in Prometheus scrape format -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <!-- Shared event contracts -->
         <dependency>
             <groupId>com.delivery</groupId>
