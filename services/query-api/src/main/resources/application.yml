@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: query-api
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: query-api-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+# Cassandra config read by CassandraConfig.java (not Boot auto-config)
+cassandra:
+  keyspace: delivery_query
+  contact-points: localhost
+  port: 9042
+  datacenter: dc1
